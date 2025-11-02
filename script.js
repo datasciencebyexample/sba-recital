@@ -1,7 +1,16 @@
+// API Configuration
+const API_CONFIG = {
+    // Set your API endpoint URL here
+    endpoint: 'http://54.82.172.38:8000/api/current-program',
+    // Set to false to use localStorage only (for testing without backend)
+    useAPI: true
+};
+
 class RecitalProgram {
     constructor() {
         this.program = [];
         this.currentIndex = -1;
+        this.currentProgramIndex = '-1';
         this.init();
     }
 
@@ -10,30 +19,71 @@ class RecitalProgram {
         this.updateDateTime();
         setInterval(() => this.updateDateTime(), 1000);
 
-        // Listen for localStorage changes from admin panel
+        // Listen for localStorage changes from admin panel (fallback)
         window.addEventListener('storage', (e) => {
             if (e.key === 'currentProgramIndex') {
-                this.loadProgram();
+                this.checkForUpdates();
             }
         });
 
-        // Also poll for changes every 2 seconds (in case same browser/tab)
+        // Poll for changes every 2 seconds
         setInterval(() => this.checkForUpdates(), 2000);
     }
 
-    checkForUpdates() {
-        const currentProgramIndex = localStorage.getItem('currentProgramIndex');
-        const currentProgram = this.program.find(p => p.is_current);
-        const currentStoredIndex = currentProgram ? currentProgram.index : null;
+    async checkForUpdates() {
+        try {
+            let newProgramIndex = '-1';
 
-        // If localStorage changed, reload
-        if (currentProgramIndex !== currentStoredIndex) {
-            this.loadProgram();
+            if (API_CONFIG.useAPI) {
+                // Try to get from API first
+                const response = await fetch(API_CONFIG.endpoint);
+                if (response.ok) {
+                    const data = await response.json();
+                    newProgramIndex = data.currentProgramIndex || '-1';
+                } else {
+                    throw new Error('API not available');
+                }
+            } else {
+                // Fallback to localStorage
+                newProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
+            }
+
+            // If the current program changed, reload
+            if (newProgramIndex !== this.currentProgramIndex) {
+                this.currentProgramIndex = newProgramIndex;
+                await this.loadProgram();
+            }
+        } catch (error) {
+            // Fallback to localStorage on error
+            const localStorageIndex = localStorage.getItem('currentProgramIndex') || '-1';
+            if (localStorageIndex !== this.currentProgramIndex) {
+                this.currentProgramIndex = localStorageIndex;
+                await this.loadProgram();
+            }
         }
     }
 
     async loadProgram() {
         try {
+            // Load current program index if not already set
+            if (this.currentProgramIndex === '-1') {
+                try {
+                    if (API_CONFIG.useAPI) {
+                        const response = await fetch(API_CONFIG.endpoint);
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.currentProgramIndex = data.currentProgramIndex || '-1';
+                        }
+                    } else {
+                        this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
+                    }
+                } catch (error) {
+                    // Fallback to localStorage
+                    this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
+                }
+            }
+
+            // Load program list from CSV
             const response = await fetch('data/programs.csv');
             const csvText = await response.text();
             this.parseCSV(csvText);
@@ -50,9 +100,6 @@ class RecitalProgram {
         this.program = [];
         this.currentIndex = -1;
 
-        // Get current program index from localStorage
-        const currentProgramIndex = localStorage.getItem('currentProgramIndex');
-
         for (let i = 1; i < lines.length; i++) {
             const values = this.parseCSVLine(lines[i]);
             const program = {
@@ -63,8 +110,8 @@ class RecitalProgram {
                 is_current: false
             };
 
-            // Set is_current based on localStorage
-            if (currentProgramIndex !== null && currentProgramIndex === values[0]) {
+            // Set is_current based on currentProgramIndex
+            if (this.currentProgramIndex !== '-1' && this.currentProgramIndex === values[0]) {
                 program.is_current = true;
                 this.currentIndex = i - 1;
             }

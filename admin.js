@@ -1,19 +1,52 @@
+// API Configuration
+const API_CONFIG = {
+    // Set your API endpoint URL here
+    endpoint: 'http://54.82.172.38:8000/api/current-program',
+    // Set to false to use localStorage only (for testing without backend)
+    useAPI: true
+};
+
 class AdminPanel {
     constructor() {
         this.program = [];
+        this.currentProgramIndex = '-1';
         this.init();
     }
 
     async init() {
+        await this.loadCurrentProgram();
         await this.loadProgram();
         this.setupEventListeners();
         this.updateDateTime();
         setInterval(() => this.updateDateTime(), 1000);
     }
 
+    async loadCurrentProgram() {
+        try {
+            if (API_CONFIG.useAPI) {
+                const response = await fetch(API_CONFIG.endpoint);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.currentProgramIndex = data.currentProgramIndex || '-1';
+                } else {
+                    throw new Error('API not available');
+                }
+            } else {
+                // Fallback to localStorage
+                this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
+            }
+        } catch (error) {
+            console.warn('Using localStorage fallback:', error);
+            this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
+        }
+    }
+
     setupEventListeners() {
         document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAll());
-        document.getElementById('refreshBtn').addEventListener('click', () => this.loadProgram());
+        document.getElementById('refreshBtn').addEventListener('click', async () => {
+            await this.loadCurrentProgram();
+            await this.loadProgram();
+        });
     }
 
     async loadProgram() {
@@ -32,9 +65,6 @@ class AdminPanel {
         const lines = csvText.trim().split('\n');
         this.program = [];
 
-        // Get current program index from localStorage
-        const currentProgramIndex = localStorage.getItem('currentProgramIndex');
-
         for (let i = 1; i < lines.length; i++) {
             const values = this.parseCSVLine(lines[i]);
             const program = {
@@ -45,8 +75,8 @@ class AdminPanel {
                 is_current: false
             };
 
-            // Set is_current based on localStorage
-            if (currentProgramIndex !== null && currentProgramIndex === values[0]) {
+            // Set is_current based on currentProgramIndex
+            if (this.currentProgramIndex !== '-1' && this.currentProgramIndex === values[0]) {
                 program.is_current = true;
             }
 
@@ -123,35 +153,90 @@ class AdminPanel {
         });
     }
 
-    toggleCurrent(index) {
+    async toggleCurrent(index) {
         const clickedItem = this.program[index];
 
         if (clickedItem.is_current) {
             // If clicking the current item, clear it
-            this.program.forEach(item => {
-                item.is_current = false;
-            });
-            localStorage.removeItem('currentProgramIndex');
-            this.showMessage('Current program cleared', 'success');
+            await this.updateCurrentProgram('-1');
         } else {
-            // Set this item as current, clear all others
-            this.program.forEach((item, i) => {
-                item.is_current = (i === index);
-            });
-            localStorage.setItem('currentProgramIndex', clickedItem.index);
-            this.showMessage(`Set "${clickedItem.title}" as current program`, 'success');
+            // Set this item as current
+            await this.updateCurrentProgram(clickedItem.index);
         }
-
-        this.updateDisplay();
     }
 
-    clearAll() {
-        this.program.forEach(item => {
-            item.is_current = false;
-        });
-        localStorage.removeItem('currentProgramIndex');
-        this.showMessage('All programs cleared', 'success');
-        this.updateDisplay();
+    async clearAll() {
+        await this.updateCurrentProgram('-1');
+    }
+
+    async updateCurrentProgram(programIndex) {
+        try {
+            if (API_CONFIG.useAPI) {
+                const response = await fetch(API_CONFIG.endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        currentProgramIndex: programIndex,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('API request failed');
+                }
+
+                this.currentProgramIndex = programIndex;
+
+                // Also update localStorage as backup
+                if (programIndex === '-1') {
+                    localStorage.removeItem('currentProgramIndex');
+                } else {
+                    localStorage.setItem('currentProgramIndex', programIndex);
+                }
+
+                const program = this.program.find(p => p.index === programIndex);
+                if (programIndex === '-1') {
+                    this.showMessage('Current program cleared', 'success');
+                } else {
+                    this.showMessage(`Set "${program?.title}" as current program`, 'success');
+                }
+            } else {
+                // Fallback to localStorage only
+                this.currentProgramIndex = programIndex;
+                if (programIndex === '-1') {
+                    localStorage.removeItem('currentProgramIndex');
+                    this.showMessage('Current program cleared', 'success');
+                } else {
+                    localStorage.setItem('currentProgramIndex', programIndex);
+                    const program = this.program.find(p => p.index === programIndex);
+                    this.showMessage(`Set "${program?.title}" as current program`, 'success');
+                }
+            }
+
+            // Update the display
+            this.program.forEach(item => {
+                item.is_current = (item.index === programIndex);
+            });
+            this.updateDisplay();
+
+        } catch (error) {
+            console.error('Error updating current program:', error);
+            this.showMessage('Error updating program. Using localStorage fallback.', 'error');
+
+            // Fallback to localStorage
+            this.currentProgramIndex = programIndex;
+            if (programIndex === '-1') {
+                localStorage.removeItem('currentProgramIndex');
+            } else {
+                localStorage.setItem('currentProgramIndex', programIndex);
+            }
+            this.program.forEach(item => {
+                item.is_current = (item.index === programIndex);
+            });
+            this.updateDisplay();
+        }
     }
 
     showMessage(message, type) {

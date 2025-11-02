@@ -7,7 +7,8 @@ A web-based system for displaying and managing recital programs with real-time u
 - **Public Display** (`index.html`) - Shows current and upcoming performances for audience
 - **Admin Panel** (`admin.html`) - Control which program is currently playing
 - **Real-time Updates** - Public display updates automatically when admin makes changes
-- **No Server Required** - Uses localStorage for state management
+- **Flexible Backend** - Works with API backend or localStorage (no server required)
+- **Multi-Device Sync** - With API backend, syncs across all devices/browsers
 - **Image Support** - Each program can have an associated image
 - **CSV-based** - Easy to edit program data
 
@@ -20,6 +21,7 @@ A web-based system for displaying and managing recital programs with real-time u
 ├── script.js            # Public display logic
 ├── admin.js             # Admin panel logic
 ├── styles.css           # Shared styles
+├── API.md               # API documentation
 ├── data/
 │   ├── programs.csv     # Program data
 │   └── images/          # Program images
@@ -44,9 +46,13 @@ index,title,performances,image
 - `performances` - List of performances (use quotes if contains commas)
 - `image` - Image filename (stored in `data/images/`)
 
-**Note:** The current program status is managed via browser localStorage, not in the CSV file.
+**Note:** The current program status is managed separately (via API or localStorage), not in the CSV file.
 
-## Setup
+## Setup Options
+
+### Option 1: LocalStorage Only (No Backend)
+
+Perfect for single-device setup or testing.
 
 1. Start a local web server (required for loading CSV files):
    ```bash
@@ -60,21 +66,70 @@ index,title,performances,image
    npx http-server
    ```
 
-2. Open your browser:
+2. In both `admin.js` and `script.js`, configure to use localStorage:
+   ```javascript
+   const API_CONFIG = {
+       endpoint: '/api/current-program',
+       useAPI: false  // Disable API, use localStorage
+   };
+   ```
+
+3. Open your browser:
    - Admin panel: `http://localhost:8000/admin.html`
    - Public display: `http://localhost:8000/index.html`
 
-3. That's it! No database or backend server needed.
+4. Both admin and public pages must be open in the **same browser** for sync.
+
+### Option 2: With API Backend (Recommended for Production)
+
+Perfect for multi-device setup - control from any device, display on any screen.
+
+1. Implement the API endpoints (see [API.md](API.md) for details):
+   - `GET /api/current-program` - Fetch current program
+   - `POST /api/current-program` - Update current program
+
+2. In both `admin.js` and `script.js`, configure your API:
+   ```javascript
+   const API_CONFIG = {
+       endpoint: 'https://your-api.com/api/current-program',
+       useAPI: true  // Enable API
+   };
+   ```
+
+3. Start your local web server and open the pages:
+   ```bash
+   python3 -m http.server 8000
+   ```
+
+4. Open admin and public pages on **any device/browser** - they all sync via API!
+
+**Benefits:**
+- ✅ Sync across multiple devices/browsers
+- ✅ Control from backstage, display on multiple screens
+- ✅ Multiple admins can update from different devices
+- ✅ State persists on server (not just in browser)
+
+See [API.md](API.md) for complete API documentation and implementation examples in Node.js, Python, and Go.
 
 ## Usage
 
 ### How It Works
 
-The system uses **browser localStorage** to track which program is currently playing:
-- The admin panel sets the current program in localStorage
-- The public display reads from localStorage and updates automatically
+The system tracks which program is currently playing using either:
+
+**LocalStorage Mode** (default):
+- Admin panel sets current program in browser localStorage
+- Public display reads from localStorage and updates automatically
 - Both pages must be open in the **same browser** to stay in sync
 - Changes persist even if you refresh the page
+- Works offline, no backend needed
+
+**API Mode** (recommended for production):
+- Admin panel POSTs updates to your API endpoint
+- Public display polls API every 2 seconds for updates
+- Syncs across **all devices and browsers**
+- State persisted on your server
+- Multiple admins can control from different devices
 
 ### Managing Programs
 
