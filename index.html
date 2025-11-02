@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recital Program</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Recital Program</h1>
+            <div class="date-time" id="dateTime"></div>
+        </header>
+
+        <div class="current-performance">
+            <h2>Now Playing</h2>
+            <div class="current-item" id="currentItem">
+                <div class="performer-name">Loading...</div>
+                <div class="piece-info">Please wait</div>
+                <div class="status-indicator playing"></div>
+            </div>
+        </div>
+
+        <div class="up-next">
+            <h2>Up Next</h2>
+            <div class="next-item" id="nextItem">
+                <div class="performer-name">Loading...</div>
+                <div class="piece-info">Please wait</div>
+            </div>
+        </div>
+
+        <div class="program-list">
+            <h2>Full Program</h2>
+            <div class="program-items" id="programItems">
+                <!-- Program items will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

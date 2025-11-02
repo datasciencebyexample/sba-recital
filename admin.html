@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recital Program - Admin</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .admin-header {
+            background: rgba(231, 76, 60, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .admin-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .admin-program-item {
+            cursor: pointer;
+        }
+
+        .admin-program-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .admin-program-item.active {
+            border-left-color: #27ae60;
+            background: rgba(39, 174, 96, 0.2);
+        }
+
+        .set-current-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .set-current-btn:hover {
+            background: #229954;
+            transform: scale(1.05);
+        }
+
+        .set-current-btn.active {
+            background: #c0392b;
+        }
+
+        .set-current-btn.active:hover {
+            background: #a93226;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: rgba(39, 174, 96, 0.3);
+            color: #2ecc71;
+            display: block;
+        }
+
+        .status-message.error {
+            background: rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+            display: block;
+        }
+
+        .public-link {
+            background: rgba(52, 152, 219, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .public-link a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .public-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Recital Program - Admin Panel</h1>
+            <div class="date-time" id="dateTime"></div>
+        </header>
+
+        <div class="admin-header">
+            <h3>Control which program is currently playing</h3>
+            <p>Click "Set Current" to mark a program as active. Click "Clear All" to reset.</p>
+        </div>
+
+        <div class="public-link">
+            <a href="index.html" target="_blank">View Public Display →</a>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+
+        <div class="admin-controls">
+            <button class="controls button" id="clearAllBtn">Clear All</button>
+            <button class="controls button" id="refreshBtn">Refresh</button>
+        </div>
+
+        <div class="program-list">
+            <h2>Program List</h2>
+            <div class="program-items" id="programItems">
+                <!-- Program items will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
