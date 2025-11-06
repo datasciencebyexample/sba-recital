@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
     // Set your API endpoint URL here
-    endpoint: 'http://54.82.172.38:8000/api/current-program',
+    endpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/current-program',
     // Set to false to use localStorage only (for testing without backend)
     useAPI: true
 };
