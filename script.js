@@ -185,6 +185,7 @@ class RecitalProgram {
         const current = this.program[this.currentIndex];
         const imagePath = `data/images/${current.image}`;
         currentItem.innerHTML = `
+            <div class="program-number">${this.currentIndex + 1} of ${this.program.length}</div>
             <img src="${imagePath}" alt="${current.title}" class="program-image" onerror="this.style.display='none'">
             <div class="performer-name">${current.title}</div>
             <div class="piece-info">
@@ -203,6 +204,7 @@ class RecitalProgram {
                 const first = this.program[0];
                 const imagePath = `data/images/${first.image}`;
                 nextItem.innerHTML = `
+                    <div class="program-number-small">1 of ${this.program.length}</div>
                     <img src="${imagePath}" alt="${first.title}" class="program-image-small" onerror="this.style.display='none'">
                     <div class="performer-name">${first.title}</div>
                     <div class="piece-info">
@@ -229,6 +231,7 @@ class RecitalProgram {
         const next = this.program[nextIndex];
         const imagePath = `data/images/${next.image}`;
         nextItem.innerHTML = `
+            <div class="program-number-small">${nextIndex + 1} of ${this.program.length}</div>
             <img src="${imagePath}" alt="${next.title}" class="program-image-small" onerror="this.style.display='none'">
             <div class="performer-name">${next.title}</div>
             <div class="piece-info">
@@ -262,6 +265,7 @@ class RecitalProgram {
 
             const imagePath = `data/images/${item.image}`;
             programItem.innerHTML = `
+                <div class="item-number">${index + 1}</div>
                 <img src="${imagePath}" alt="${item.title}" class="program-thumbnail" onerror="this.style.display='none'">
                 <div class="item-info">
                     <div class="item-performer">${item.title}</div>
