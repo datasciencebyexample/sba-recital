@@ -1,8 +1,9 @@
+console.log('[Program] script.js loaded into the page.');
+
 // API Configuration
 const API_CONFIG = {
-    // Set your API endpoint URL here
-    endpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/current-program',
-    // Set to false to use localStorage only (for testing without backend)
+    currentProgramEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/current-program',
+    sequencesEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/sequences',
     useAPI: true
 };
 
@@ -11,10 +12,33 @@ class RecitalProgram {
         this.program = [];
         this.currentIndex = -1;
         this.currentProgramIndex = '-1';
+        this.setupDetailToggleListener();
         this.init();
     }
 
+    setupDetailToggleListener() {
+        document.addEventListener('click', (event) => {
+            const button = event.target.closest('.detail-toggle');
+            if (!button) {
+                return;
+            }
+
+            const targetId = button.getAttribute('data-target');
+            const panel = document.getElementById(targetId);
+            if (!panel) {
+                return;
+            }
+
+            const isOpen = panel.classList.toggle('open');
+            panel.style.maxHeight = isOpen ? `${panel.scrollHeight}px` : '0px';
+            panel.setAttribute('aria-hidden', (!isOpen).toString());
+            button.setAttribute('aria-expanded', isOpen.toString());
+            button.textContent = isOpen ? 'Hide Details' : 'View Details';
+        });
+    }
+
     async init() {
+        console.log('[Program] Initializing recital program UI…');
         await this.loadProgram();
         this.updateDateTime();
         setInterval(() => this.updateDateTime(), 1000);
@@ -35,26 +59,27 @@ class RecitalProgram {
             let newProgramIndex = '-1';
 
             if (API_CONFIG.useAPI) {
-                // Try to get from API first
-                const response = await fetch(API_CONFIG.endpoint);
+                console.log('[Program] Polling current program index from API…');
+                const response = await fetch(API_CONFIG.currentProgramEndpoint);
                 if (response.ok) {
                     const data = await response.json();
                     newProgramIndex = data.currentProgramIndex || '-1';
+                    console.log('[Program] Current program index from API:', newProgramIndex);
                 } else {
+                    console.warn('[Program] Current program endpoint returned non-OK response:', response.status);
                     throw new Error('API not available');
                 }
             } else {
-                // Fallback to localStorage
                 newProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
             }
 
-            // If the current program changed, reload
             if (newProgramIndex !== this.currentProgramIndex) {
+                console.log('[Program] Detected change in current program index. Old:', this.currentProgramIndex, 'New:', newProgramIndex);
                 this.currentProgramIndex = newProgramIndex;
                 await this.loadProgram();
             }
         } catch (error) {
-            // Fallback to localStorage on error
+            console.error('[Program] Unable to reach current program endpoint, using localStorage fallback.', error);
             const localStorageIndex = localStorage.getItem('currentProgramIndex') || '-1';
             if (localStorageIndex !== this.currentProgramIndex) {
                 this.currentProgramIndex = localStorageIndex;
@@ -65,89 +90,109 @@ class RecitalProgram {
 
     async loadProgram() {
         try {
-            // Load current program index if not already set
-            if (this.currentProgramIndex === '-1') {
-                try {
-                    if (API_CONFIG.useAPI) {
-                        const response = await fetch(API_CONFIG.endpoint);
-                        if (response.ok) {
-                            const data = await response.json();
-                            this.currentProgramIndex = data.currentProgramIndex || '-1';
-                        }
-                    } else {
-                        this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
-                    }
-                } catch (error) {
-                    // Fallback to localStorage
-                    this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
-                }
-            }
-
-            // Load program list from CSV
-            const response = await fetch('data/programs.csv');
-            const csvText = await response.text();
-            this.parseCSV(csvText);
+            console.log('[Program] Loading program data…');
+            await this.ensureCurrentProgramIndex();
+            await this.loadProgramFromAPI();
+            console.log('[Program] Program data loaded from live API.');
             this.updateDisplay();
+            console.log('[Program] Program data rendered. Program length:', this.program.length, 'Current index:', this.currentIndex);
         } catch (error) {
-            console.error('Error loading program:', error);
+            console.error('Error loading program from API:', error);
+            this.program = [];
+            this.currentIndex = -1;
+            this.updateDisplay();
         }
     }
 
-    parseCSV(csvText) {
-        const lines = csvText.trim().split('\n');
-        const headers = lines[0].split(',');
-
-        this.program = [];
-        this.currentIndex = -1;
-
-        for (let i = 1; i < lines.length; i++) {
-            const values = this.parseCSVLine(lines[i]);
-            const program = {
-                index: values[0],
-                title: values[1],
-                performances: values[2],
-                image: values[3],
-                is_current: false
-            };
-
-            // Set is_current based on currentProgramIndex
-            if (this.currentProgramIndex !== '-1' && this.currentProgramIndex === values[0]) {
-                program.is_current = true;
-                this.currentIndex = i - 1;
-            }
-
-            this.program.push(program);
+    async ensureCurrentProgramIndex() {
+        if (this.currentProgramIndex !== '-1') {
+            return;
         }
-    }
 
-    parseCSVLine(line) {
-        const values = [];
-        let current = '';
-        let inQuotes = false;
-
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                values.push(current.trim());
-                current = '';
+        try {
+            if (API_CONFIG.useAPI) {
+                console.log('[Program] Fetching initial current program index from API…');
+                const response = await fetch(API_CONFIG.currentProgramEndpoint);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.currentProgramIndex = data.currentProgramIndex || '-1';
+                    console.log('[Program] Initial current program index (API):', this.currentProgramIndex);
+                } else {
+                    throw new Error('Current program endpoint unavailable');
+                }
             } else {
-                current += char;
+                this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
+                console.log('[Program] Initial current program index (localStorage):', this.currentProgramIndex);
             }
+        } catch (error) {
+            console.warn('Falling back to localStorage for current program index.', error);
+            this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
+            console.log('[Program] Initial current program index (fallback localStorage):', this.currentProgramIndex);
         }
-        values.push(current.trim());
+    }
 
-        return values;
+    async loadProgramFromAPI() {
+        console.log('[Program] Fetching full sequence list from API…');
+        const response = await fetch(API_CONFIG.sequencesEndpoint);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch sequences from API (status ${response.status})`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+            throw new Error('Unexpected sequences payload');
+        }
+
+        this.program = data.map((item, idx) => this.normalizeSequenceItem(item, idx));
+        console.log('[Program] Received', this.program.length, 'sequences from API.');
+        this.setCurrentIndex();
+    }
+
+    normalizeSequenceItem(item, idx) {
+        const detailEntries = [];
+        if (item['costumes/notes']) {
+            detailEntries.push({
+                label: 'Costumes / Notes',
+                value: item['costumes/notes']
+            });
+        }
+        if (item['quick change1']) {
+            detailEntries.push({
+                label: 'Quick Change 1',
+                value: item['quick change1']
+            });
+        }
+        if (item['quick change2']) {
+            detailEntries.push({
+                label: 'Quick Change 2',
+                value: item['quick change2']
+            });
+        }
+
+        return {
+            order: (idx + 1).toString(),
+            sequence: item.sequence || `Seq. ${idx + 1}`,
+            title: item.title || 'Program Piece',
+            actors: Array.isArray(item.actors) ? item.actors : [],
+            details: detailEntries
+        };
+    }
+
+    setCurrentIndex() {
+        if (this.program.length === 0 || this.currentProgramIndex === '-1') {
+            this.currentIndex = -1;
+            return;
+        }
+
+        this.currentIndex = this.program.findIndex((item) => item.order === this.currentProgramIndex);
     }
 
     updateDateTime() {
         const now = new Date();
-        const options = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
+        const options = {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
@@ -183,14 +228,15 @@ class RecitalProgram {
         }
 
         const current = this.program[this.currentIndex];
-        const imagePath = `data/images/${current.image}`;
+        const detailMarkup = this.getDetailMarkup(current, 'current', this.currentIndex);
         currentItem.innerHTML = `
-            <div class="program-number">${this.currentIndex + 1} of ${this.program.length}</div>
-            <img src="${imagePath}" alt="${current.title}" class="program-image" onerror="this.style.display='none'">
-            <div class="performer-name">${current.title}</div>
-            <div class="piece-info">
-                <strong>${current.performances}</strong>
+            <div class="program-number">
+                ${current.sequence}
+                <span class="program-count">${this.currentIndex + 1} of ${this.program.length}</span>
             </div>
+            <div class="performer-name">${current.title}</div>
+            <div class="actors-list"><strong>Performers:</strong> ${this.formatActors(current.actors)}</div>
+            ${detailMarkup}
             <div class="status-indicator playing"></div>
         `;
     }
@@ -199,24 +245,26 @@ class RecitalProgram {
         const nextItem = document.getElementById('nextItem');
         const nextIndex = this.currentIndex + 1;
 
+        if (this.program.length === 0) {
+            nextItem.innerHTML = `
+                <div class="performer-name">Loading...</div>
+                <div class="piece-info">Please wait</div>
+            `;
+            return;
+        }
+
         if (this.currentIndex === -1) {
-            if (this.program.length > 0) {
-                const first = this.program[0];
-                const imagePath = `data/images/${first.image}`;
-                nextItem.innerHTML = `
-                    <div class="program-number-small">1 of ${this.program.length}</div>
-                    <img src="${imagePath}" alt="${first.title}" class="program-image-small" onerror="this.style.display='none'">
-                    <div class="performer-name">${first.title}</div>
-                    <div class="piece-info">
-                        <strong>${first.performances}</strong>
-                    </div>
-                `;
-            } else {
-                nextItem.innerHTML = `
-                    <div class="performer-name">Loading...</div>
-                    <div class="piece-info">Please wait</div>
-                `;
-            }
+            const first = this.program[0];
+            const detailMarkup = this.getDetailMarkup(first, 'next', 0);
+            nextItem.innerHTML = `
+                <div class="program-number-small">
+                    ${first.sequence}
+                    <span class="program-count">1 of ${this.program.length}</span>
+                </div>
+                <div class="performer-name">${first.title}</div>
+                <div class="actors-list"><strong>Performers:</strong> ${this.formatActors(first.actors)}</div>
+                ${detailMarkup}
+            `;
             return;
         }
 
@@ -229,20 +277,33 @@ class RecitalProgram {
         }
 
         const next = this.program[nextIndex];
-        const imagePath = `data/images/${next.image}`;
+        const detailMarkup = this.getDetailMarkup(next, 'next', nextIndex);
         nextItem.innerHTML = `
-            <div class="program-number-small">${nextIndex + 1} of ${this.program.length}</div>
-            <img src="${imagePath}" alt="${next.title}" class="program-image-small" onerror="this.style.display='none'">
-            <div class="performer-name">${next.title}</div>
-            <div class="piece-info">
-                <strong>${next.performances}</strong>
+            <div class="program-number-small">
+                ${next.sequence}
+                <span class="program-count">${nextIndex + 1} of ${this.program.length}</span>
             </div>
+            <div class="performer-name">${next.title}</div>
+            <div class="actors-list"><strong>Performers:</strong> ${this.formatActors(next.actors)}</div>
+            ${detailMarkup}
         `;
     }
 
     updateProgramList() {
         const programItems = document.getElementById('programItems');
         programItems.innerHTML = '';
+
+        if (this.program.length === 0) {
+            programItems.innerHTML = `
+                <div class="program-item empty">
+                    <div class="item-info">
+                        <div class="item-performer">No program data available</div>
+                        <div class="item-piece">Please check back later.</div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
 
         this.program.forEach((item, index) => {
             const programItem = document.createElement('div');
@@ -251,7 +312,7 @@ class RecitalProgram {
             let status = 'upcoming';
             let statusText = 'Upcoming';
 
-            if (index < this.currentIndex) {
+            if (this.currentIndex !== -1 && index < this.currentIndex) {
                 status = 'completed';
                 statusText = 'Completed';
                 programItem.classList.add('completed');
@@ -263,13 +324,16 @@ class RecitalProgram {
                 programItem.classList.add('upcoming');
             }
 
-            const imagePath = `data/images/${item.image}`;
+            const detailMarkup = this.getDetailMarkup(item, 'list', index);
             programItem.innerHTML = `
-                <div class="item-number">${index + 1}</div>
-                <img src="${imagePath}" alt="${item.title}" class="program-thumbnail" onerror="this.style.display='none'">
+                <div class="item-number">
+                    <div>${item.sequence}</div>
+                    <small>${index + 1} of ${this.program.length}</small>
+                </div>
                 <div class="item-info">
                     <div class="item-performer">${item.title}</div>
-                    <div class="item-piece">${item.performances}</div>
+                    <div class="item-actors"><strong>Performers:</strong> ${this.formatActors(item.actors)}</div>
+                    ${detailMarkup}
                 </div>
                 <div class="item-status ${status}">${statusText}</div>
             `;
@@ -277,9 +341,48 @@ class RecitalProgram {
             programItems.appendChild(programItem);
         });
     }
+
+    formatActors(actors) {
+        if (!Array.isArray(actors) || actors.length === 0) {
+            return 'To be announced';
+        }
+        return actors.join(', ');
+    }
+
+    getDetailMarkup(item, context, index) {
+        const details = Array.isArray(item.details) ? item.details : [];
+        if (details.length === 0) {
+            return '';
+        }
+
+        const detailId = `${context}-details-${index}`;
+        const rows = details.map((detail) => `
+            <div class="detail-row">
+                <span class="detail-label">${detail.label}</span>
+                <div class="detail-value">${this.formatDetailValue(detail.value)}</div>
+            </div>
+        `).join('');
+
+        return `
+            <button class="detail-toggle" type="button" aria-expanded="false" aria-controls="${detailId}" data-target="${detailId}">
+                View Details
+            </button>
+            <div class="detail-panel" id="${detailId}" aria-hidden="true">
+                ${rows}
+            </div>
+        `;
+    }
+
+    formatDetailValue(value) {
+        if (!value) {
+            return '';
+        }
+        return value.replace(/\\r?\\n/g, '<br>');
+    }
 }
 
 // Initialize the program when the page loads
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Program] DOMContentLoaded fired, bootstrapping RecitalProgram.');
     window.recitalProgram = new RecitalProgram();
 });
