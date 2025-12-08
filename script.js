@@ -1,5 +1,3 @@
-console.log('[Program] script.js loaded into the page.');
-
 // API Configuration
 const API_CONFIG = {
     currentProgramEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/current-program',
@@ -38,7 +36,6 @@ class RecitalProgram {
     }
 
     async init() {
-        console.log('[Program] Initializing recital program UI…');
         await this.loadProgram();
         this.updateDateTime();
         setInterval(() => this.updateDateTime(), 1000);
@@ -50,8 +47,8 @@ class RecitalProgram {
             }
         });
 
-        // Poll for changes every 2 seconds
-        setInterval(() => this.checkForUpdates(), 2000);
+        // Poll for changes every 3 seconds
+        setInterval(() => this.checkForUpdates(), 3000);
     }
 
     async checkForUpdates() {
@@ -59,12 +56,10 @@ class RecitalProgram {
             let newProgramIndex = '-1';
 
             if (API_CONFIG.useAPI) {
-                console.log('[Program] Polling current program index from API…');
                 const response = await fetch(API_CONFIG.currentProgramEndpoint);
                 if (response.ok) {
                     const data = await response.json();
                     newProgramIndex = data.currentProgramIndex || '-1';
-                    console.log('[Program] Current program index from API:', newProgramIndex);
                 } else {
                     console.warn('[Program] Current program endpoint returned non-OK response:', response.status);
                     throw new Error('API not available');
@@ -74,7 +69,6 @@ class RecitalProgram {
             }
 
             if (newProgramIndex !== this.currentProgramIndex) {
-                console.log('[Program] Detected change in current program index. Old:', this.currentProgramIndex, 'New:', newProgramIndex);
                 this.currentProgramIndex = newProgramIndex;
                 await this.loadProgram();
             }
@@ -90,12 +84,9 @@ class RecitalProgram {
 
     async loadProgram() {
         try {
-            console.log('[Program] Loading program data…');
             await this.ensureCurrentProgramIndex();
             await this.loadProgramFromAPI();
-            console.log('[Program] Program data loaded from live API.');
             this.updateDisplay();
-            console.log('[Program] Program data rendered. Program length:', this.program.length, 'Current index:', this.currentIndex);
         } catch (error) {
             console.error('Error loading program from API:', error);
             this.program = [];
@@ -111,28 +102,23 @@ class RecitalProgram {
 
         try {
             if (API_CONFIG.useAPI) {
-                console.log('[Program] Fetching initial current program index from API…');
                 const response = await fetch(API_CONFIG.currentProgramEndpoint);
                 if (response.ok) {
                     const data = await response.json();
                     this.currentProgramIndex = data.currentProgramIndex || '-1';
-                    console.log('[Program] Initial current program index (API):', this.currentProgramIndex);
                 } else {
                     throw new Error('Current program endpoint unavailable');
                 }
             } else {
                 this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
-                console.log('[Program] Initial current program index (localStorage):', this.currentProgramIndex);
             }
         } catch (error) {
             console.warn('Falling back to localStorage for current program index.', error);
             this.currentProgramIndex = localStorage.getItem('currentProgramIndex') || '-1';
-            console.log('[Program] Initial current program index (fallback localStorage):', this.currentProgramIndex);
         }
     }
 
     async loadProgramFromAPI() {
-        console.log('[Program] Fetching full sequence list from API…');
         const response = await fetch(API_CONFIG.sequencesEndpoint);
         if (!response.ok) {
             throw new Error(`Failed to fetch sequences from API (status ${response.status})`);
@@ -144,7 +130,6 @@ class RecitalProgram {
         }
 
         this.program = data.map((item, idx) => this.normalizeSequenceItem(item, idx));
-        console.log('[Program] Received', this.program.length, 'sequences from API.');
         this.setCurrentIndex();
     }
 
@@ -383,6 +368,5 @@ class RecitalProgram {
 
 // Initialize the program when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Program] DOMContentLoaded fired, bootstrapping RecitalProgram.');
     window.recitalProgram = new RecitalProgram();
 });
