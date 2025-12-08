@@ -1,8 +1,7 @@
 // API Configuration
 const API_CONFIG = {
-    // Set your API endpoint URL here
-    endpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/current-program',
-    // Set to false to use localStorage only (for testing without backend)
+    currentProgramEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/current-program',
+    sequencesEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/sequences',
     useAPI: true
 };
 
@@ -24,7 +23,7 @@ class AdminPanel {
     async loadCurrentProgram() {
         try {
             if (API_CONFIG.useAPI) {
-                const response = await fetch(API_CONFIG.endpoint);
+                const response = await fetch(API_CONFIG.currentProgramEndpoint);
                 if (response.ok) {
                     const data = await response.json();
                     this.currentProgramIndex = data.currentProgramIndex || '-1';
@@ -51,9 +50,18 @@ class AdminPanel {
 
     async loadProgram() {
         try {
-            const response = await fetch('data/programs.csv');
-            const csvText = await response.text();
-            this.parseCSV(csvText);
+            if (!API_CONFIG.useAPI) {
+                throw new Error('API disabled but no local data source available');
+            }
+
+            const response = await fetch(API_CONFIG.sequencesEndpoint);
+            if (!response.ok) {
+                throw new Error('Failed to load sequences from API');
+            }
+
+            const data = await response.json();
+            this.program = data.map((item, idx) => this.normalizeSequenceItem(item, idx));
+            this.syncCurrentFlag();
             this.updateDisplay();
         } catch (error) {
             console.error('Error loading program:', error);
@@ -61,49 +69,25 @@ class AdminPanel {
         }
     }
 
-    parseCSV(csvText) {
-        const lines = csvText.trim().split('\n');
-        this.program = [];
-
-        for (let i = 1; i < lines.length; i++) {
-            const values = this.parseCSVLine(lines[i]);
-            const program = {
-                index: values[0],
-                title: values[1],
-                performances: values[2],
-                image: values[3],
-                is_current: false
-            };
-
-            // Set is_current based on currentProgramIndex
-            if (this.currentProgramIndex !== '-1' && this.currentProgramIndex === values[0]) {
-                program.is_current = true;
-            }
-
-            this.program.push(program);
-        }
+    normalizeSequenceItem(item, idx) {
+        return {
+            order: (idx + 1).toString(),
+            sequence: item.sequence || `Seq. ${idx + 1}`,
+            title: item.title || 'Program Piece',
+            actors: Array.isArray(item.actors) ? item.actors : [],
+            details: {
+                notes: item['costumes/notes'] || '',
+                quickChange1: item['quick change1'] || '',
+                quickChange2: item['quick change2'] || ''
+            },
+            is_current: this.currentProgramIndex !== '-1' && this.currentProgramIndex === (idx + 1).toString()
+        };
     }
 
-    parseCSVLine(line) {
-        const values = [];
-        let current = '';
-        let inQuotes = false;
-
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                values.push(current.trim());
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-        values.push(current.trim());
-
-        return values;
+    syncCurrentFlag() {
+        this.program.forEach((item) => {
+            item.is_current = this.currentProgramIndex !== '-1' && item.order === this.currentProgramIndex;
+        });
     }
 
     updateDateTime() {
@@ -131,12 +115,11 @@ class AdminPanel {
                 programItem.classList.add('active');
             }
 
-            const imagePath = `data/images/${item.image}`;
             programItem.innerHTML = `
-                <img src="${imagePath}" alt="${item.title}" class="program-thumbnail" onerror="this.style.display='none'">
                 <div class="item-info">
-                    <div class="item-performer">${item.index}. ${item.title}</div>
-                    <div class="item-piece">${item.performances}</div>
+                    <div class="item-performer">${item.sequence} - ${item.title}</div>
+                    <div class="item-piece"><strong>Performers:</strong> ${this.formatActors(item.actors)}</div>
+                    ${this.formatDetails(item.details)}
                 </div>
                 <button class="set-current-btn ${item.is_current ? 'active' : ''}" data-index="${index}">
                     ${item.is_current ? 'Clear' : 'Set Current'}
@@ -161,7 +144,7 @@ class AdminPanel {
             await this.updateCurrentProgram('-1');
         } else {
             // Set this item as current
-            await this.updateCurrentProgram(clickedItem.index);
+            await this.updateCurrentProgram(clickedItem.order);
         }
     }
 
@@ -172,7 +155,7 @@ class AdminPanel {
     async updateCurrentProgram(programIndex) {
         try {
             if (API_CONFIG.useAPI) {
-                const response = await fetch(API_CONFIG.endpoint, {
+                const response = await fetch(API_CONFIG.currentProgramEndpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -196,7 +179,7 @@ class AdminPanel {
                     localStorage.setItem('currentProgramIndex', programIndex);
                 }
 
-                const program = this.program.find(p => p.index === programIndex);
+                const program = this.program.find(p => p.order === programIndex);
                 if (programIndex === '-1') {
                     this.showMessage('Current program cleared', 'success');
                 } else {
@@ -210,15 +193,13 @@ class AdminPanel {
                     this.showMessage('Current program cleared', 'success');
                 } else {
                     localStorage.setItem('currentProgramIndex', programIndex);
-                    const program = this.program.find(p => p.index === programIndex);
+                    const program = this.program.find(p => p.order === programIndex);
                     this.showMessage(`Set "${program?.title}" as current program`, 'success');
                 }
             }
 
             // Update the display
-            this.program.forEach(item => {
-                item.is_current = (item.index === programIndex);
-            });
+            this.syncCurrentFlag();
             this.updateDisplay();
 
         } catch (error) {
@@ -232,11 +213,33 @@ class AdminPanel {
             } else {
                 localStorage.setItem('currentProgramIndex', programIndex);
             }
-            this.program.forEach(item => {
-                item.is_current = (item.index === programIndex);
-            });
+            this.syncCurrentFlag();
             this.updateDisplay();
         }
+    }
+
+    formatActors(actors) {
+        if (!Array.isArray(actors) || actors.length === 0) {
+            return 'To be announced';
+        }
+        return actors.join(', ');
+    }
+
+    formatDetails(details) {
+        const rows = [];
+        if (details.notes) {
+            rows.push(`<div><strong>Costumes/Notes:</strong> ${details.notes}</div>`);
+        }
+        if (details.quickChange1) {
+            rows.push(`<div><strong>Quick Change 1:</strong> ${details.quickChange1}</div>`);
+        }
+        if (details.quickChange2) {
+            rows.push(`<div><strong>Quick Change 2:</strong> ${details.quickChange2}</div>`);
+        }
+        if (rows.length === 0) {
+            return '';
+        }
+        return `<div class="item-details">${rows.join('')}</div>`;
     }
 
     showMessage(message, type) {
