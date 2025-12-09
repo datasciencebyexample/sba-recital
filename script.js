@@ -47,8 +47,8 @@ class RecitalProgram {
             }
         });
 
-        // Poll for changes every 3 seconds
-        setInterval(() => this.checkForUpdates(), 3000);
+        // Poll for changes every 5 seconds
+        setInterval(() => this.checkForUpdates(), 5000);
     }
 
     async checkForUpdates() {
@@ -173,7 +173,7 @@ class RecitalProgram {
     }
 
     updateDateTime() {
-        document.getElementById('dateTime').textContent = 'December 13 & 14';
+        document.getElementById('dateTime').textContent = 'December 14, Sunday';
     }
 
     updateDisplay() {
