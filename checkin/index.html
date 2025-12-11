@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performer Check-In</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body class="checkin-body">
+    <div class="container checkin-container">
+        <header class="checkin-header">
+            <h1>Performer Check-In</h1>
+            <p class="checkin-subtitle">Search, check performers in or out, and keep everyone in sync.</p>
+        </header>
+
+        <div class="checkin-controls">
+            <label for="checkinSearch" class="visually-hidden">Search by performer name</label>
+            <input type="search" id="checkinSearch" placeholder="Search by name" autocomplete="off" />
+            <button id="refreshCheckin" class="checkin-refresh">Refresh</button>
+        </div>
+
+        <div id="checkinStatusMessage" class="checkin-alert" role="status" aria-live="polite"></div>
+
+        <div id="checkinList" class="checkin-list">
+            <div class="checkin-empty">Loading performers…</div>
+        </div>
+    </div>
+
+    <script src="./checkin.js" defer></script>
+</body>
+</html>
