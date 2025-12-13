@@ -47,8 +47,8 @@ class RecitalProgram {
             }
         });
 
-        // Poll for changes every 5 seconds
-        setInterval(() => this.checkForUpdates(), 5000);
+        // Poll for changes every 8 seconds
+        setInterval(() => this.checkForUpdates(), 8000);
     }
 
     async checkForUpdates() {
