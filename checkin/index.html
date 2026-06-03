@@ -14,6 +14,12 @@
         </header>
 
         <div class="checkin-controls">
+            <label for="checkinDay" class="visually-hidden">Choose check-in day</label>
+            <select id="checkinDay" aria-label="Choose check-in day">
+                <option value="friday">Friday</option>
+                <option value="saturday">Saturday</option>
+                <option value="sunday">Sunday</option>
+            </select>
             <label for="checkinSearch" class="visually-hidden">Search by performer name</label>
             <input type="search" id="checkinSearch" placeholder="Search by name" autocomplete="off" />
             <button id="refreshCheckin" class="checkin-refresh">Refresh</button>

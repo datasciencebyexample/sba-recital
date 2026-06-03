@@ -3,20 +3,36 @@ const CHECKIN_API = {
     updateEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/sba/checkin-update'
 };
 
+const CHECKIN_DAYS = ['friday', 'saturday', 'sunday'];
+const CHECKIN_DAY_LABELS = {
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday'
+};
+
 class CheckinPage {
     constructor() {
+        this.rawActors = [];
         this.actors = [];
         this.filteredActors = [];
         this.isLoading = false;
         this.currentQuery = '';
+        this.currentDay = this.loadSavedDay();
         this.listEl = document.getElementById('checkinList');
         this.messageEl = document.getElementById('checkinStatusMessage');
         this.searchInput = document.getElementById('checkinSearch');
+        this.daySelect = document.getElementById('checkinDay');
         this.refreshBtn = document.getElementById('refreshCheckin');
         this.activeRequests = new Set();
 
         this.attachEvents();
+        this.syncDayControl();
         this.fetchStatus();
+    }
+
+    loadSavedDay() {
+        const savedDay = localStorage.getItem('sbaCheckinDay');
+        return CHECKIN_DAYS.includes(savedDay) ? savedDay : 'sunday';
     }
 
     attachEvents() {
@@ -27,16 +43,41 @@ class CheckinPage {
             });
         }
 
+        if (this.daySelect) {
+            this.daySelect.addEventListener('change', (event) => {
+                this.updateCurrentDay(event.target.value);
+            });
+        }
+
         if (this.refreshBtn) {
             this.refreshBtn.addEventListener('click', () => this.fetchStatus());
         }
+    }
+
+    syncDayControl() {
+        if (this.daySelect) {
+            this.daySelect.value = this.currentDay;
+        }
+    }
+
+    updateCurrentDay(day) {
+        if (!CHECKIN_DAYS.includes(day) || day === this.currentDay) {
+            return;
+        }
+
+        this.currentDay = day;
+        localStorage.setItem('sbaCheckinDay', day);
+        this.rebuildActorsForCurrentDay();
+        this.applySearchFilter();
+        this.renderList(this.currentQuery);
+        this.setAlert(`Showing ${this.getDayLabel(day)} check-in status.`, 'info');
     }
 
     async fetchStatus(showLoadingMessage = true) {
         try {
             this.isLoading = true;
             if (showLoadingMessage) {
-                this.setAlert('Loading performers…', 'info');
+                this.setAlert(`Loading ${this.getDayLabel(this.currentDay)} performers…`, 'info');
             }
             const response = await fetch(CHECKIN_API.statusEndpoint);
             if (!response.ok) {
@@ -48,7 +89,8 @@ class CheckinPage {
                 throw new Error('Unexpected response format from check-in API');
             }
 
-            this.actors = data.map((actor) => this.normalizeActor(actor));
+            this.rawActors = data;
+            this.rebuildActorsForCurrentDay();
             this.applySearchFilter();
             this.renderList(this.currentQuery);
             if (showLoadingMessage) {
@@ -63,16 +105,46 @@ class CheckinPage {
         }
     }
 
+    rebuildActorsForCurrentDay() {
+        this.actors = this.rawActors.map((actor) => this.normalizeActor(actor));
+    }
+
     normalizeActor(actor) {
+        const statuses = this.buildStatuses(actor);
+        const currentStatus = statuses[this.currentDay];
+
         return {
             name: actor.name || 'Unnamed Performer',
             age: actor.age || '—',
             cafeteria_group: actor.cafeteria_group || '—',
             quick_change: actor.quick_change || '',
             other_special_instructions: actor.other_special_instructions || actor.other_instructions || '',
-            check_in: Boolean(actor.check_in),
-            check_out: Boolean(actor.check_out)
+            statuses,
+            check_in: currentStatus.check_in,
+            check_out: currentStatus.check_out
         };
+    }
+
+    buildStatuses(actor) {
+        return CHECKIN_DAYS.reduce((statuses, day) => {
+            statuses[day] = {
+                check_in: this.toBoolean(actor[`check_in_${day}`] ?? actor.check_in),
+                check_out: this.toBoolean(actor[`check_out_${day}`] ?? actor.check_out)
+            };
+            return statuses;
+        }, {});
+    }
+
+    toBoolean(value) {
+        if (typeof value === 'boolean') {
+            return value;
+        }
+
+        if (typeof value === 'string') {
+            return ['true', 'yes', 'y', '1', 'checked'].includes(value.trim().toLowerCase());
+        }
+
+        return Boolean(value);
     }
 
     filterByName(query) {
@@ -131,13 +203,15 @@ class CheckinPage {
         card.setAttribute('data-name', actor.name);
 
         const detailItems = this.buildDetailList(actor);
+        const dayLabel = this.getDayLabel(this.currentDay);
 
         card.innerHTML = `
             <div class="checkin-card-header">
-                <h2 class="checkin-name">${actor.name}</h2>
+                <h2 class="checkin-name">${this.escapeHtml(actor.name)}</h2>
                 <div class="checkin-tags">
-                    <span class="checkin-tag ${actor.check_in ? 'tag-success' : ''}">Check In: ${actor.check_in ? 'Yes' : 'No'}</span>
-                    <span class="checkin-tag ${actor.check_out ? 'tag-success' : ''}">Check Out: ${actor.check_out ? 'Yes' : 'No'}</span>
+                    <span class="checkin-tag">${dayLabel}</span>
+                    <span class="checkin-tag ${actor.check_in ? 'tag-success' : ''}">In: ${actor.check_in ? 'Yes' : 'No'}</span>
+                    <span class="checkin-tag ${actor.check_out ? 'tag-success' : ''}">Out: ${actor.check_out ? 'Yes' : 'No'}</span>
                 </div>
             </div>
             <dl class="checkin-details">
@@ -145,10 +219,10 @@ class CheckinPage {
             </dl>
             <div class="checkin-actions">
                 <button class="checkin-btn ${actor.check_in ? 'active' : ''}" data-action="check_in" aria-pressed="${actor.check_in}">
-                    ${this.buildButtonLabel(actor.check_in, actor.check_in ? 'Checked In' : 'Check In')}
+                    ${this.buildButtonLabel(actor.check_in, actor.check_in ? `Checked In ${dayLabel}` : `Check In ${dayLabel}`)}
                 </button>
                 <button class="checkin-btn secondary ${actor.check_out ? 'active' : ''}" data-action="check_out" aria-pressed="${actor.check_out}">
-                    ${this.buildButtonLabel(actor.check_out, actor.check_out ? 'Checked Out' : 'Check Out')}
+                    ${this.buildButtonLabel(actor.check_out, actor.check_out ? `Checked Out ${dayLabel}` : `Check Out ${dayLabel}`)}
                 </button>
             </div>
         `;
@@ -182,8 +256,8 @@ class CheckinPage {
     detailRow(label, value) {
         return `
             <div class="checkin-detail-row">
-                <dt>${label}</dt>
-                <dd>${value}</dd>
+                <dt>${this.escapeHtml(label)}</dt>
+                <dd>${this.escapeHtml(value)}</dd>
             </div>
         `;
     }
@@ -193,7 +267,7 @@ class CheckinPage {
             <span class="checkin-checkbox ${isChecked ? 'checked' : ''}" aria-hidden="true">
                 <span class="checkin-checkmark">&#10003;</span>
             </span>
-            <span class="checkin-btn-label">${label}</span>
+            <span class="checkin-btn-label">${this.escapeHtml(label)}</span>
         `;
     }
 
@@ -202,7 +276,7 @@ class CheckinPage {
             return;
         }
 
-        const key = `${actor.name}:${action}`;
+        const key = `${actor.name}:${this.currentDay}:${action}`;
         if (this.activeRequests.has(key)) {
             return;
         }
@@ -220,7 +294,7 @@ class CheckinPage {
         try {
             await this.sendUpdate(updatedActor, action);
             await this.fetchStatus(false);
-            this.setAlert(`${actor.name} ${isCheckInAction ? 'check-in' : 'check-out'} updated.`, 'success');
+            this.setAlert(`${actor.name} ${this.getDayLabel(this.currentDay)} ${isCheckInAction ? 'check-in' : 'check-out'} updated.`, 'success');
         } catch (error) {
             console.error('Unable to update performer status', error);
             this.setAlert('Update failed. Please try again.', 'error');
@@ -232,7 +306,8 @@ class CheckinPage {
 
     async sendUpdate(actorPayload, action) {
         const payload = {
-            name: actorPayload.name
+            name: actorPayload.name,
+            day: this.currentDay
         };
 
         const numericAge = Number(actorPayload.age);
@@ -258,7 +333,6 @@ class CheckinPage {
             throw new Error(`Update failed with status ${response.status}`);
         }
 
-        // Some backends might not return JSON. Attempt to parse but ignore errors.
         try {
             const result = await response.json();
             if (result && result.name) {
@@ -301,6 +375,19 @@ class CheckinPage {
 
         this.messageEl.textContent = '';
         this.messageEl.className = 'checkin-alert';
+    }
+
+    getDayLabel(day) {
+        return CHECKIN_DAY_LABELS[day] || day;
+    }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 }
 

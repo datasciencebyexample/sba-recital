@@ -415,7 +415,8 @@ header h1 {
     flex-wrap: wrap;
 }
 
-.checkin-controls input {
+.checkin-controls input,
+.checkin-controls select {
     flex: 1;
     min-width: 200px;
     border: 1px solid rgba(52, 152, 219, 0.4);
@@ -427,9 +428,15 @@ header h1 {
     background: rgba(255, 255, 255, 0.9);
 }
 
-.checkin-controls input:focus {
+.checkin-controls input:focus,
+.checkin-controls select:focus {
     border-color: #3498db;
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+.checkin-controls select {
+    flex: 0 0 160px;
+    cursor: pointer;
 }
 
 .checkin-refresh {
