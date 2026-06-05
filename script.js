@@ -129,8 +129,19 @@ class RecitalProgram {
             throw new Error('Unexpected sequences payload');
         }
 
-        this.program = data.map((item, idx) => this.normalizeSequenceItem(item, idx));
+        this.program = this.sortSequenceData(data).map((item, idx) => this.normalizeSequenceItem(item, idx));
         this.setCurrentIndex();
+    }
+
+    sortSequenceData(data) {
+        return [...data].sort((a, b) => {
+            const left = Number(a.sort_order);
+            const right = Number(b.sort_order);
+            if (Number.isNaN(left) || Number.isNaN(right)) {
+                return 0;
+            }
+            return left - right;
+        });
     }
 
     normalizeSequenceItem(item, idx) {
@@ -153,10 +164,22 @@ class RecitalProgram {
                 value: item['quick change2']
             });
         }
+        if (item.boys) {
+            detailEntries.push({
+                label: 'Boys',
+                value: item.boys
+            });
+        }
+        if (item.parent_coordinator) {
+            detailEntries.push({
+                label: 'Parent Coordinator',
+                value: item.parent_coordinator
+            });
+        }
 
         return {
             order: (idx + 1).toString(),
-            sequence: item.sequence || `Seq. ${idx + 1}`,
+            sequence: item.display_sequence || item.sequence || `Seq. ${idx + 1}`,
             title: item.title || 'Program Piece',
             actors: Array.isArray(item.actors) ? item.actors : [],
             details: detailEntries
