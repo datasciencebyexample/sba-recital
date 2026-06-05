@@ -60,7 +60,7 @@ class AdminPanel {
             }
 
             const data = await response.json();
-            this.program = data.map((item, idx) => this.normalizeSequenceItem(item, idx));
+            this.program = this.sortSequenceData(data).map((item, idx) => this.normalizeSequenceItem(item, idx));
             this.syncCurrentFlag();
             this.updateDisplay();
         } catch (error) {
@@ -69,16 +69,29 @@ class AdminPanel {
         }
     }
 
+    sortSequenceData(data) {
+        return [...data].sort((a, b) => {
+            const left = Number(a.sort_order);
+            const right = Number(b.sort_order);
+            if (Number.isNaN(left) || Number.isNaN(right)) {
+                return 0;
+            }
+            return left - right;
+        });
+    }
+
     normalizeSequenceItem(item, idx) {
         return {
             order: (idx + 1).toString(),
-            sequence: item.sequence || `Seq. ${idx + 1}`,
+            sequence: item.display_sequence || item.sequence || `Seq. ${idx + 1}`,
             title: item.title || 'Program Piece',
             actors: Array.isArray(item.actors) ? item.actors : [],
             details: {
                 notes: item['costumes/notes'] || '',
                 quickChange1: item['quick change1'] || '',
-                quickChange2: item['quick change2'] || ''
+                quickChange2: item['quick change2'] || '',
+                boys: item.boys || '',
+                parentCoordinator: item.parent_coordinator || ''
             },
             is_current: this.currentProgramIndex !== '-1' && this.currentProgramIndex === (idx + 1).toString()
         };
@@ -235,6 +248,12 @@ class AdminPanel {
         }
         if (details.quickChange2) {
             rows.push(`<div><strong>Quick Change 2:</strong> ${details.quickChange2}</div>`);
+        }
+        if (details.boys) {
+            rows.push(`<div><strong>Boys:</strong> ${details.boys}</div>`);
+        }
+        if (details.parentCoordinator) {
+            rows.push(`<div><strong>Parent Coordinator:</strong> ${details.parentCoordinator}</div>`);
         }
         if (rows.length === 0) {
             return '';
