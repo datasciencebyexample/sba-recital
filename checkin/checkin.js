@@ -3,9 +3,8 @@ const CHECKIN_API = {
     updateEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/sba/checkin-update'
 };
 
-const CHECKIN_DAYS = ['friday', 'saturday', 'sunday'];
+const CHECKIN_DAYS = ['saturday', 'sunday'];
 const CHECKIN_DAY_LABELS = {
-    friday: 'Friday',
     saturday: 'Saturday',
     sunday: 'Sunday'
 };
@@ -32,7 +31,7 @@ class CheckinPage {
 
     loadSavedDay() {
         const savedDay = localStorage.getItem('sbaCheckinDay');
-        return CHECKIN_DAYS.includes(savedDay) ? savedDay : 'sunday';
+        return CHECKIN_DAYS.includes(savedDay) ? savedDay : 'saturday';
     }
 
     attachEvents() {
