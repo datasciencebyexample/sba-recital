@@ -196,7 +196,7 @@ class RecitalProgram {
     }
 
     updateDateTime() {
-        document.getElementById('dateTime').textContent = 'June 5, Friday';
+        document.getElementById('dateTime').textContent = 'June 6/7';
     }
 
     updateDisplay() {
