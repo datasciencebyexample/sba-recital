@@ -10,7 +10,9 @@ class RecitalProgram {
         this.program = [];
         this.currentIndex = -1;
         this.currentProgramIndex = '-1';
+        this.searchQuery = '';
         this.setupDetailToggleListener();
+        this.setupSearchListener();
         this.init();
     }
 
@@ -32,6 +34,18 @@ class RecitalProgram {
             panel.setAttribute('aria-hidden', (!isOpen).toString());
             button.setAttribute('aria-expanded', isOpen.toString());
             button.textContent = isOpen ? 'Hide Details' : 'View Details';
+        });
+    }
+
+    setupSearchListener() {
+        const searchInput = document.getElementById('programSearch');
+        if (!searchInput) {
+            return;
+        }
+
+        searchInput.addEventListener('input', () => {
+            this.searchQuery = searchInput.value.trim().toLowerCase();
+            this.updateProgramList();
         });
     }
 
@@ -290,7 +304,11 @@ class RecitalProgram {
 
     updateProgramList() {
         const programItems = document.getElementById('programItems');
+        const searchCount = document.getElementById('programSearchCount');
         programItems.innerHTML = '';
+        if (searchCount) {
+            searchCount.textContent = '';
+        }
 
         if (this.program.length === 0) {
             programItems.innerHTML = `
@@ -304,7 +322,27 @@ class RecitalProgram {
             return;
         }
 
-        this.program.forEach((item, index) => {
+        const visibleItems = this.program
+            .map((item, index) => ({ item, index }))
+            .filter(({ item, index }) => this.matchesSearch(item, index));
+
+        if (searchCount && this.searchQuery) {
+            searchCount.textContent = `${visibleItems.length} match${visibleItems.length === 1 ? '' : 'es'} found`;
+        }
+
+        if (visibleItems.length === 0) {
+            programItems.innerHTML = `
+                <div class="program-item empty">
+                    <div class="item-info">
+                        <div class="item-performer">No matches found</div>
+                        <div class="item-piece">Try a sequence number, title, performer, or detail.</div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        visibleItems.forEach(({ item, index }) => {
             const programItem = document.createElement('div');
             programItem.className = 'program-item';
 
@@ -339,6 +377,30 @@ class RecitalProgram {
 
             programItems.appendChild(programItem);
         });
+    }
+
+    matchesSearch(item, index) {
+        if (!this.searchQuery) {
+            return true;
+        }
+
+        return this.getSearchText(item, index).includes(this.searchQuery);
+    }
+
+    getSearchText(item, index) {
+        const details = Array.isArray(item.details) ? item.details : [];
+        const detailText = details.flatMap((detail) => [detail.label, detail.value]);
+        return [
+            item.order,
+            item.sequence,
+            index + 1,
+            item.title,
+            ...item.actors,
+            ...detailText
+        ]
+            .filter((value) => value !== undefined && value !== null)
+            .join(' ')
+            .toLowerCase();
     }
 
     formatActors(actors) {

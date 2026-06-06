@@ -195,6 +195,39 @@ header h1 {
     border: 1px solid rgba(52, 152, 219, 0.15);
 }
 
+.program-search {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 20px;
+    flex-wrap: wrap;
+}
+
+.program-search input {
+    flex: 1 1 320px;
+    width: 100%;
+    border: 1px solid rgba(52, 152, 219, 0.4);
+    border-radius: 25px;
+    padding: 12px 18px;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background: rgba(255, 255, 255, 0.92);
+    color: #2c3e50;
+}
+
+.program-search input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+.program-search-count {
+    min-width: 120px;
+    color: #5a6c7d;
+    font-size: 0.95rem;
+    text-align: right;
+}
+
 .controls {
     margin-bottom: 20px;
     text-align: center;
@@ -715,6 +748,20 @@ header h1 {
         display: block;
         width: 100%;
         margin: 5px 0;
+    }
+
+    .program-search {
+        gap: 8px;
+    }
+
+    .program-search input {
+        flex-basis: 100%;
+    }
+
+    .program-search-count {
+        min-width: 0;
+        width: 100%;
+        text-align: left;
     }
 
     .checkin-controls {
