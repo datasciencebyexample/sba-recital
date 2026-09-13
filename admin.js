@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
-    currentProgramEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/current-program',
-    sequencesEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/sequences',
+    currentProgramEndpoint: 'https://api.sbadcshow.com/sba/current-program',
+    sequencesEndpoint: 'https://api.sbadcshow.com/sba/sequences',
     useAPI: true
 };
 

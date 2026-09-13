@@ -1,6 +1,6 @@
 const CHECKIN_API = {
-    statusEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/sba/checkin-status',
-    updateEndpoint: 'https://ln686uub5b.execute-api.us-east-1.amazonaws.com/prod/sba/checkin-update'
+    statusEndpoint: 'https://api.sbadcshow.com/sba/checkin-status',
+    updateEndpoint: 'https://api.sbadcshow.com/sba/checkin-update'
 };
 
 const CHECKIN_DAYS = ['saturday', 'sunday'];
